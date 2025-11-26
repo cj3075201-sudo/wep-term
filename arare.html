@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>아라레의 생일파티 초대장</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+    
+    <style>
+        /* =========================================
+           1. 기본 설정 (Reset & Global)
+           ========================================= */
+        body {
+            margin: 0; 
+            padding: 0; 
+            width: 100vw; 
+            height: 100vh;
+            background-color: #eee; 
+            overflow: hidden; /* 스크롤 방지 */
+            position: relative;
+            font-family: 'Jua', sans-serif; 
+        }
+
+        /* 공통 클래스: 드래그 방지 및 성능 최적화 */
+        .poster-element {
+            position: absolute; 
+            will-change: transform, top; /* GPU 가속 유도 */
+            -webkit-user-drag: none; 
+            -moz-user-drag: none; 
+            -ms-user-drag: none;
+            user-select: none; 
+            pointer-events: auto;
+        }
+
+        /* =========================================
+           2. 주요 이미지 요소 (Background, Logo)
+           ========================================= */
+        
+        /* 배경 이미지 (초기 상태: 화면 위로 숨김) */
+        #bg-image {
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            left: 0; 
+            top: -100vh; 
+            z-index: 1;
+            /* 튕기는 듯한 애니메이션 효과 */
+            transition: top 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* 로고 이미지 (초기 상태: 화면 위로 숨김) */
+        #logo-image {
+            width: 30%; 
+            left: 35%; 
+            top: -50vh; 
+            z-index: 3;
+            /* 배경보다 0.2초 늦게 떨어짐 */
+            transition: top 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.2s;
+        }
+
+        /* =========================================
+           3. 정보 텍스트 영역 (Info Container)
+           ========================================= */
+        #movie-info {
+            position: absolute;
+            bottom: 0; 
+            left: 0;
+            width: 100%;
+            height: 35vh; 
+            
+            /* 하단 그라데이션: 글자 가독성 확보 */
+            background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%);
+            
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end; 
+            align-items: center;
+            padding-bottom: 60px;
+            
+            z-index: 4; 
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 1s ease-out 0.5s;
+            pointer-events: none; /* 그라데이션이 클릭 방해하지 않게 설정 */
+        }
+
+        /* 텍스트 스타일링 */
+        .anniversary-badge {
+            font-size: 1.4rem; 
+            color: #FFD700; 
+            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            letter-spacing: 1.5px;
+            margin-bottom: 15px; 
+            display: block;
+            text-transform: uppercase;
+        }
+
+        .sub-info {
+            font-size: 2.2rem; 
+            color: #ff6b81; 
+            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            margin-top: 0;
+            margin-bottom: 25px;
+            letter-spacing: 1px;
+        }
+
+        .credits-text {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+            letter-spacing: 1px;
+            line-height: 1.5;
+        }
+
+        /* =========================================
+           4. 아라레 (Main Character)
+           ========================================= */
+        #arale {
+            width: 500px; 
+            top: 0px; 
+            left: 50%; 
+            transform: translateX(-50%);
+            z-index: 10; 
+            cursor: grab;
+            -webkit-user-drag: none; 
+            transition: none; /* 드래그 반응성을 위해 기본 transition 없음 */
+            pointer-events: auto;
+        }
+
+        #arale.grabbing { 
+            cursor: grabbing; 
+        }
+        
+        .arale-hidden { 
+            display: none; 
+        }
+
+        /* =========================================
+           5. 상태 활성화 클래스 (Active States)
+           ========================================= */
+        /* 1단계 완료: 배경 내려옴 */
+        .stage-1-active #bg-image { top: 0 !important; }
+        
+        /* 2단계 완료: 로고 내려옴 & 텍스트 등장 */
+        .stage-2-active #logo-image { top: 10% !important; }
+        .stage-2-active #movie-info { opacity: 1; transform: translateY(0); }
+
+    </style>
+</head>
+<body id="main-stage">
+
+    <img src="asset/q1.png" id="bg-image" class="poster-element" alt="배경">
+    <img src="asset/q5.png" id="logo-image" class="poster-element" alt="로고">
+    
+    <div id="movie-info">
+        <span class="anniversary-badge">45TH ANNIVERSARY POP-UP STORE</span>
+        <div class="sub-info">2025. 12. 07 • HONGDAE</div>
+        <div class="credits-text">
+            SPECIAL GOODS &nbsp;|&nbsp; LIMITED EDITION FIGURES &nbsp;|&nbsp; PHOTO ZONE
+        </div>
+    </div>
+
+    <img src="asset/q3.png" id="arale" class="poster-element" alt="아라레" draggable="false">
+
+    <script>
+        /* =========================================
+           변수 및 상수 선언
+           ========================================= */
+        const arale = document.getElementById('arale');
+        const bgImage = document.getElementById('bg-image');
+        const logoImage = document.getElementById('logo-image');
+        const stageBody = document.getElementById('main-stage');
+        
+        // 상태 변수
+        let isDragging = false;
+        let offsetY; 
+        let currentStage = 0; // 0: 초기, 1: 배경완료, 2: 로고완료
+        
+        // 설정값 (Constants)
+        const DROP_THRESHOLD = 300; // 당겨야 하는 거리 (px)
+        const GRIP_OFFSET = 50;     // 손 위치 보정값
+        const windowHeight = window.innerHeight;
+
+        // 이미지 경로 (Asset 폴더)
+        const IMG_NORMAL = 'asset/q3.png';
+        const IMG_CLIMBING = 'asset/q2.png';
+
+        // 애니메이션 속도
+        const SPEED_RESET = '1.6s'; 
+        const SPEED_EXIT = '3.0s';  
+
+        // 기본 드래그 방지
+        arale.ondragstart = function() { return false; };
+
+
+        /* =========================================
+           헬퍼 함수 (Helper Functions)
+           ========================================= */
+        
+        // 1단계 복귀 완료 후 실행
+        function resetArale() {
+            arale.src = IMG_NORMAL;
+            arale.style.width = '500px'; 
+            arale.style.transition = 'none';
+            currentStage = 1; 
+            arale.removeEventListener('transitionend', resetArale);
+        }
+
+        // 2단계 퇴장 완료 후 실행
+        function exitArale() {
+            arale.classList.add('arale-hidden');
+            arale.removeEventListener('transitionend', exitArale);
+        }
+
+
+        /* =========================================
+           이벤트 리스너 (Event Listeners)
+           ========================================= */
+
+        // 1. 마우스 누름 (Start Drag)
+        arale.addEventListener('mousedown', function(e) {
+            if (e.button !== 0) return; // 좌클릭만 허용
+            e.preventDefault();
+
+            // 초기화 및 안전장치
+            arale.style.transition = 'none';
+            arale.removeEventListener('transitionend', resetArale);
+            arale.removeEventListener('transitionend', exitArale);
+            arale.src = IMG_NORMAL;
+            arale.style.width = '500px';
+            arale.classList.remove('arale-hidden'); 
+
+            // 실시간 이동을 위해 배경/로고의 transition 잠시 끄기
+            if (currentStage === 0) bgImage.style.transition = 'none';
+            else if (currentStage === 1) logoImage.style.transition = 'none';
+
+            // 드래그 상태 시작
+            isDragging = true;
+            arale.classList.add('grabbing');
+
+            // 마우스 오프셋 계산
+            const rect = arale.getBoundingClientRect();
+            offsetY = e.clientY - rect.top;
+            arale.style.top = rect.top + 'px';
+        });
+
+
+        // 2. 마우스 움직임 (Dragging)
+        document.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+
+            const y = e.clientY - offsetY;
+            arale.style.top = y + 'px';
+
+            // 단계별 배경/로고 따라오기 (실시간 동기화)
+            if (currentStage === 0) {
+                // 1단계: 배경
+                let newTop = (y - windowHeight) + GRIP_OFFSET;
+                if (newTop > 0) newTop = 0; 
+                bgImage.style.top = newTop + 'px';
+
+            } else if (currentStage === 1) {
+                // 2단계: 로고
+                let newTop = y - 200; 
+                let targetTop = windowHeight * 0.1; 
+                if (newTop > targetTop) newTop = targetTop;
+                logoImage.style.top = newTop + 'px';
+            }
+        });
+
+
+        // 3. 마우스 뗌 (End Drag)
+        document.addEventListener('mouseup', function() {
+            if (isDragging) {
+                isDragging = false;
+                arale.classList.remove('grabbing');
+                
+                // JS로 강제 적용한 스타일 제거 (CSS transition 복구)
+                bgImage.removeAttribute('style');
+                logoImage.removeAttribute('style');
+
+                // 당긴 거리 확인
+                const isPulledEnough = parseInt(arale.style.top) > DROP_THRESHOLD;
+
+                if (isPulledEnough) {
+                    // === 성공 (Action) ===
+                    arale.src = IMG_CLIMBING; 
+                    arale.style.width = '750px'; 
+
+                    if (currentStage === 0) {
+                        // 1단계 성공
+                        stageBody.classList.add('stage-1-active');
+                        arale.style.transition = `top ${SPEED_RESET} ease-in-out`; 
+                        arale.style.top = '0px';
+                        arale.addEventListener('transitionend', resetArale);
+
+                    } else if (currentStage === 1) {
+                        // 2단계 성공 (퇴장)
+                        stageBody.classList.add('stage-2-active');
+                        arale.style.transition = `top ${SPEED_EXIT} ease-in-out`; 
+                        arale.style.top = '-1000px'; 
+                        arale.addEventListener('transitionend', exitArale);
+                    }
+                } else {
+                    // === 실패 (Cancel) ===
+                    arale.style.transition = 'top 0.5s ease-out';
+                    arale.style.top = '0px';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
