@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>아라레의 생일파티 초대장</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
+    
+    <style>
+        /* === 1. 기본 설정 === */
+        body {
+            margin: 0; padding: 0;
+            width: 100vw; height: 100vh;
+            background-color: #eee;
+            overflow: hidden; position: relative;
+            font-family: 'Jua', sans-serif;
+            user-select: none;
+        }
+
+        .poster-element {
+            position: absolute;
+            will-change: transform, top, opacity;
+            -webkit-user-drag: none;
+            user-select: none;
+            pointer-events: auto;
+        }
+
+        #bg-image {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            left: 0; top: -100vh;
+            z-index: 1;
+            transition: top 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* === 2. 인트로 로딩 화면 === */
+        #intro-loader {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: #FFD700;
+            z-index: 9999;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            transition: transform 0.8s cubic-bezier(0.77, 0, 0.175, 1);
+        }
+        
+        #intro-logo { width: 40%; max-width: 500px; margin-bottom: 20px; }
+        
+        #loading-text {
+            font-size: 3rem; color: #054D91;
+            font-weight: bold; letter-spacing: 2px;
+        }
+        
+        body.loaded #intro-loader { transform: translateY(-100%); }
+
+        /* === 3. 우측 상단 LOCATION 버튼 === */
+        #reach-out-btn {
+            position: fixed; top: 30px; right: 30px;
+            width: 120px; height: 120px;
+            z-index: 100; cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none;
+            transform: scale(0.8);
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        body.arale-arrived #reach-out-btn {
+            opacity: 1; pointer-events: auto; transform: scale(1);
+        }
+
+        .circle-text {
+            position: absolute; width: 100%; height: 100%;
+            animation: rotateText 10s linear infinite;
+        }
+        
+        .circle-text svg { width: 100%; height: 100%; overflow: visible; }
+        .circle-text path { fill: none; }
+        .circle-text text {
+            font-family: 'Anton', sans-serif; font-size: 14px;
+            fill: #000; letter-spacing: 2px; text-transform: uppercase;
+        }
+
+        .arrow-icon {
+            position: absolute; font-size: 3rem; color: #000;
+            transform: rotate(-45deg);
+            transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            padding-bottom: 5px;
+        }
+        
+        #reach-out-btn:hover .arrow-icon { transform: rotate(0deg); }
+
+        /* === 4. 왼쪽 스티커 놀이 영역 === */
+        #left-sticker-zone {
+            position: absolute; 
+            top: 50%; left: 0; 
+            width: 30%; height: 50%;
+            z-index: 15;
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%23FFD700"><circle cx="12" cy="12" r="10"/></svg>') 16 16, crosshair;
+            display: none;
+            background: transparent;
+        }
+        
+        body.arale-arrived #left-sticker-zone { display: block; }
+
+        .random-sticker {
+            position: absolute; width: 130px; height: auto;
+            transform: translate(-50%, -50%) scale(0);
+            z-index: 16; pointer-events: none;
+            filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.2));
+            animation: stamp-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* === 5. 캐릭터 및 태그 스타일 === */
+        .final-character-group {
+            position: absolute; width: 100%; height: 100%;
+            left: 0; top: 0; z-index: 2; pointer-events: none;
+        }
+        
+        .movable-char {
+            position: absolute; opacity: 0;
+            transform: perspective(1000px) translateZ(-2000px) translateY(-50vh);
+            transform-origin: center bottom;
+            transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease-out;
+        }
+
+        #char-center-wrapper {
+            width: 60%; 
+            left: 20%; bottom: 5vh;
+            z-index: 3; position: absolute;
+            display: flex; justify-content: center; align-items: flex-end;
+        }
+
+        .arale-pose {
+            width: 100%; height: auto;
+            position: relative; z-index: 2; display: none;
+            max-height: 85vh; object-fit: contain;
+        }
+
+        #char-center-final {
+            display: block; width: 35%;
+            cursor: pointer; pointer-events: auto;
+        }
+
+        #char-left {
+            width: 10%; left: 32%; bottom: 55vh;
+            z-index: 2; cursor: pointer; pointer-events: auto;
+        }
+        #char-right {
+            width: 10%; right: 32%; bottom: 55vh;
+            z-index: 2; cursor: pointer; pointer-events: auto;
+        }
+
+        .comic-tag {
+            position: absolute; padding: 5px 15px;
+            background: #fff; border: 3px solid #000;
+            font-family: 'Anton', sans-serif; font-size: 1.2rem;
+            color: #000; text-transform: uppercase; cursor: pointer;
+            z-index: 20; opacity: 0; pointer-events: none;
+            box-shadow: 4px 4px 0 rgba(0,0,0,1);
+            transition: transform 0.2s;
+            animation: float-tag 2s infinite ease-in-out;
+        }
+        
+        body.arale-arrived .comic-tag { opacity: 1; pointer-events: auto; }
+        .comic-tag:hover { transform: scale(1.1) rotate(-5deg) !important; background: #FFD700; }
+
+        #tag-goods { left: 28%; bottom: 65vh; transform: rotate(-10deg); color: #ff6b81; }
+        #tag-event { right: 28%; bottom: 65vh; transform: rotate(10deg); color: #054D91; }
+        #tag-ticket { 
+            left: auto; right: 25%; bottom: 25vh; 
+            transform: rotate(10deg); background: #FFD700; 
+        }
+
+        /* === 6. 정보 팝업 (Info Bubble) === */
+        .info-bubble, #address-popup {
+            position: absolute; background: #fff;
+            border: 4px solid #000; border-radius: 20px;
+            padding: 20px; width: 250px;
+            font-family: 'Jua', sans-serif; text-align: left;
+            z-index: 30; opacity: 0; pointer-events: none;
+            transform: scale(0); transform-origin: bottom center;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.2);
+        }
+        
+        .info-bubble.show, #address-popup.show {
+            opacity: 1; pointer-events: auto; transform: scale(1);
+        }
+
+        .info-bubble h3 { margin: 0 0 10px; color: #ff6b81; font-size: 1.5rem; font-family: 'Anton', sans-serif; }
+        .info-bubble p, #address-popup p { margin: 0; font-size: 1rem; line-height: 1.5; color: #333; }
+        .info-bubble ul { padding-left: 20px; margin: 5px 0; }
+        .info-bubble li { margin-bottom: 5px; }
+
+        #pop-goods { left: 15%; bottom: 70vh; transform-origin: bottom right; }
+        #pop-event { right: 15%; bottom: 70vh; transform-origin: bottom left; }
+        #pop-ticket { 
+            left: auto; right: 15%; bottom: 35vh; 
+            transform-origin: bottom left; text-align: center; 
+        }
+        
+        #address-popup {
+            position: fixed; top: 35px; right: 160px;
+            z-index: 99; transform-origin: right center; text-align: right;
+            background: #FFD700; border: 3px solid #000; border-radius: 50px;
+        }
+
+        .close-btn {
+            position: absolute; top: -15px; right: -15px;
+            width: 30px; height: 30px;
+            background: #000; color: #fff;
+            border-radius: 50%; text-align: center; line-height: 30px;
+            cursor: pointer; font-weight: bold;
+        }
+
+        /* === 7. 먼지 이펙트 & 애니메이션 === */
+        .dust-effect {
+            position: absolute; left: 50%; bottom: -70px;
+            width: 100%; height: 120px;
+            transform: translateX(-50%); z-index: 4; pointer-events: none;
+            display: flex; justify-content: center; align-items: flex-end;
+        }
+        
+        .dust-cloud {
+            position: absolute; background: #ffffff;
+            border-radius: 50%; filter: blur(8px); opacity: 0; transform: scale(0);
+        }
+        
+        .d1 { width: 80px; height: 80px; left: 45%; bottom: 10px; }
+        .d2 { width: 70px; height: 70px; left: 35%; bottom: 5px; }
+        .d3 { width: 70px; height: 70px; left: 55%; bottom: 5px; }
+        .d4 { width: 50px; height: 50px; left: 25%; bottom: 15px; }
+        .d5 { width: 50px; height: 50px; left: 65%; bottom: 15px; }
+        .d6 { width: 60px; height: 40px; left: 40%; bottom: 25px; }
+        .d7 { width: 60px; height: 40px; left: 50%; bottom: 25px; }
+
+        @keyframes dust-explosion {
+            0% { transform: scale(0.5) translateY(0); opacity: 0.9; }
+            50% { transform: scale(1.5) translateY(-20px); opacity: 0.6; }
+            100% { transform: scale(2.0) translateY(-40px); opacity: 0; }
+        }
+        .dust-active .dust-cloud { animation: dust-explosion 0.15s ease-out forwards; }
+        .dust-active .d2 { animation-delay: 0.03s; }
+        .dust-active .d3 { animation-delay: 0.03s; }
+        .dust-active .d4, .dust-active .d5 { animation-delay: 0.05s; }
+
+        @keyframes rotateText { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes float-tag {
+            0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+            50% { transform: translateY(-10px) rotate(var(--r, 0deg)); }
+        }
+        @keyframes stamp-in {
+            0% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(0.9); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1) rotate(var(--r)); }
+        }
+
+        .stage-1-active #bg-image { top: 0 !important; }
+        .stage-2-active #logo-image { top: 5% !important; }
+        .stage-2-active #movie-info { opacity: 1; transform: translateY(0); }
+        .stage-final-started .movable-char { opacity: 1; }
+
+        /* === 8. 초기 드래그 화면 === */
+        #logo-image {
+            width: 27%; left: 36.5%; top: -50vh; z-index: 3;
+            transition: top 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.2s;
+        }
+        
+        #movie-info {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 35vh;
+            background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%);
+            display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end;
+            padding-bottom: 60px; padding-right: 5vw; box-sizing: border-box;
+            z-index: 4; opacity: 0; transform: translateY(20px);
+            transition: all 1s ease-out 0.5s; pointer-events: none;
+        }
+        
+        .anniversary-badge { font-size: 1.4rem; color: #FFD700; margin-bottom: 15px; display: block; text-align: right; }
+        .sub-info { font-size: 2.2rem; color: #ff6b81; margin: 0 0 25px; text-align: right; }
+        .credits-text { font-size: 1.1rem; color: rgba(255, 255, 255, 0.9); text-align: right; }
+
+        #arale-drag {
+            width: 500px; top: 0px; left: 50%; transform: translateX(-50%);
+            z-index: 10; cursor: grab;
+            -webkit-user-drag: none; transition: none; pointer-events: auto;
+        }
+        #arale-drag.grabbing { cursor: grabbing; }
+        .arale-hidden { display: none; }
+    </style>
+</head>
+<body id="main-stage">
+
+    <div id="intro-loader">
+        <img src="assets/q5.png" id="intro-logo" alt="Dr.Slump Logo">
+        <div id="loading-text">0%</div>
+    </div>
+
+    <div id="reach-out-btn" onclick="togglePopup('address-popup')">
+        <div class="circle-text">
+            <svg viewBox="0 0 100 100">
+                <path id="circlePath" d="M 50, 50 m -37, 0 a 37,37 0 1,1 74,0 a 37,37 0 1,1 -74,0" />
+                <text><textPath href="#circlePath">LOCATION * LOCATION * LOCATION *</textPath></text>
+            </svg>
+        </div>
+        <div class="arrow-icon">➜</div>
+    </div>
+    <div id="address-popup">
+        <p><strong>닥터슬럼프 팝업스토어</strong><br>서울시 마포구 동교동 190-1<br>2025. 12. 10. (1일간)</p>
+    </div>
+
+    <div id="left-sticker-zone" onclick="createSticker(event)"></div>
+
+    <img src="assets/q1.png" id="bg-image" class="poster-element" alt="배경">
+    
+    <div class="final-character-group">
+        <img src="assets/a2.png" id="char-left" class="movable-char" alt="가짱(왼쪽)" onclick="togglePopup('pop-goods')">
+        <div class="comic-tag" id="tag-goods" style="--r:-10deg" onclick="togglePopup('pop-goods')">GOODS</div>
+        <div id="pop-goods" class="info-bubble">
+            <div class="close-btn" onclick="closeAllPopups()">X</div>
+            <h3>Special Goods</h3>
+            <ul>
+                <li>아라레 모자 & 안경</li>
+                <li>운치군 봉제인형</li>
+                <li>펭귄마을 백팩</li>
+                <li>랜덤 키링 (10종)</li>
+            </ul>
+        </div>
+
+        <img src="assets/a3.png" id="char-right" class="movable-char" alt="가짱(오른쪽)" onclick="togglePopup('pop-event')">
+        <div class="comic-tag" id="tag-event" style="--r:10deg" onclick="togglePopup('pop-event')">EVENT</div>
+        <div id="pop-event" class="info-bubble">
+            <div class="close-btn" onclick="closeAllPopups()">X</div>
+            <h3>Pop-up Event</h3>
+            <p>📸 아라레 포토존<br>☕ 슬럼프박사 커피타임<br>🎁 선착순 부채 증정</p>
+        </div>
+        
+        <div id="char-center-wrapper" class="movable-char">
+            <img src="assets/run1.png" id="char-center-run1" class="arale-pose" alt="달림1">
+            <img src="assets/run2.png" id="char-center-run2" class="arale-pose" alt="달림2">
+            
+            <img src="assets/a1.png" id="char-center-final" class="arale-pose" alt="도착" onclick="togglePopup('pop-ticket')">
+            <div class="comic-tag" id="tag-ticket" style="--r:10deg" onclick="togglePopup('pop-ticket')">TICKET</div>
+            
+            <div id="pop-ticket" class="info-bubble">
+                <div class="close-btn" onclick="closeAllPopups()">X</div>
+                <h3>Invitation</h3>
+                <p><strong>2025. 12. 10. (1일간)</strong><br>홍대 AK플라자 4F</p>
+                <br>
+                <a href="#" style="background:#FFD700; color:#000; text-decoration:none; padding:8px 20px; border:2px solid #000; border-radius:20px; font-weight:bold; display:inline-block;">사전예약 ></a>
+            </div>
+
+            <div class="dust-effect" id="dust-effect">
+                <div class="dust-cloud d1"></div><div class="dust-cloud d2"></div><div class="dust-cloud d3"></div>
+                <div class="dust-cloud d4"></div><div class="dust-cloud d5"></div><div class="dust-cloud d6"></div><div class="dust-cloud d7"></div>
+            </div>
+        </div>
+    </div>
+
+    <img src="assets/q5.png" id="logo-image" class="poster-element" alt="로고">
+    <div id="movie-info">
+        <span class="anniversary-badge">45TH ANNIVERSARY POP-UP STORE</span>
+        <div class="sub-info">2025. 12. 10. • Donggyo-dong 190-1</div>
+        <div class="credits-text">SPECIAL GOODS &nbsp;|&nbsp; LIMITED EDITION FIGURES &nbsp;|&nbsp; PHOTO ZONE</div>
+    </div>
+    <img src="assets/q3.png" id="arale-drag" class="poster-element" alt="아라레 드래그" draggable="false">
+
+    <script>
+        const stickers = ['assets/s1.png', 'assets/s2.png', 'assets/s3.png', 'assets/s4.png'];
+        let stickerZ = 15;
+
+        // 1. 스티커 생성 함수
+        function createSticker(e) {
+            const stickerZone = document.getElementById('left-sticker-zone');
+            const img = document.createElement('img');
+            const randomSrc = stickers[Math.floor(Math.random() * stickers.length)];
+            
+            img.src = randomSrc;
+            img.classList.add('random-sticker');
+            
+            // 클릭 위치에 스티커 배치
+            img.style.left = e.clientX + 'px';
+            img.style.top = e.clientY + 'px';
+            img.style.zIndex = stickerZ++;
+            
+            // 랜덤 회전 각도 부여
+            const randomRot = (Math.random() * 60 - 30) + 'deg';
+            img.style.setProperty('--r', randomRot);
+
+            document.body.appendChild(img);
+        }
+
+        // 2. 팝업 토글 함수
+        function togglePopup(id) {
+            const popup = document.getElementById(id);
+            const isClosed = !popup.classList.contains('show');
+            closeAllPopups(); // 다른 팝업 닫기
+            if (isClosed) { popup.classList.add('show'); }
+        }
+
+        function closeAllPopups() {
+            document.querySelectorAll('.info-bubble, #address-popup').forEach(el => el.classList.remove('show'));
+        }
+
+        // 3. 인트로 로딩 로직
+        document.addEventListener("DOMContentLoaded", function() {
+            const loader = document.getElementById('intro-loader');
+            const loadingText = document.getElementById('loading-text');
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.floor(Math.random() * 5) + 1; 
+                if (progress > 100) progress = 100;
+                loadingText.innerText = progress + '%';
+                if (progress === 100) {
+                    clearInterval(interval);
+                    setTimeout(() => { document.body.classList.add('loaded'); }, 500); 
+                }
+            }, 30);
+        });
+
+        // 4. 메인 게임 및 캐릭터 로직
+        const araleDrag = document.getElementById('arale-drag');
+        const bgImage = document.getElementById('bg-image');
+        const logoImage = document.getElementById('logo-image');
+        const stageBody = document.getElementById('main-stage');
+        const movableChars = document.querySelectorAll('.movable-char');
+        const dustEffect = document.getElementById('dust-effect');
+        const charRun1 = document.getElementById('char-center-run1');
+        const charRun2 = document.getElementById('char-center-run2');
+        const charFinal = document.getElementById('char-center-final');
+        
+        let isDragging = false; let offsetY; const DROP_THRESHOLD = 300;
+        const IMG_NORMAL = 'assets/q3.png'; const IMG_CLIMBING = 'assets/q2.png';
+        const SPEED_RESET = '1.6s'; const SPEED_EXIT = '3.0s';  
+        let currentStage = 0; const windowHeight = window.innerHeight; const GRIP_OFFSET = 50; 
+        let isFinalStage = false; let clickCount = 0; const TARGET_CLICKS = 30;
+
+        araleDrag.ondragstart = function() { return false; };
+
+        function resetArale() { 
+            araleDrag.src = IMG_NORMAL; araleDrag.style.width = '500px'; 
+            araleDrag.style.transition = 'none'; currentStage = 1; 
+            araleDrag.removeEventListener('transitionend', resetArale); 
+        }
+
+        function exitArale() {
+            araleDrag.classList.add('arale-hidden'); araleDrag.removeEventListener('transitionend', exitArale);
+            setTimeout(() => {
+                stageBody.classList.add('stage-final-started'); isFinalStage = true; 
+                charFinal.style.display = 'none'; charRun1.style.display = 'block';
+                updateCharacterPosition(0);
+            }, 300);
+        }
+
+        function updateCharacterPosition(progress) {
+            const easeOutQuad = (t) => t * (2 - t);
+            const easedProgress = easeOutQuad(progress);
+            const bounce = Math.abs(Math.sin(clickCount * 1.5)) * 3; 
+            const z = -2000 * (1 - easedProgress);
+            const y = (-50 * (1 - easedProgress)) - bounce; 
+            
+            movableChars.forEach(char => {
+                char.style.transform = `perspective(1000px) translateZ(${z}px) translateY(${y}vh)`;
+            });
+        }
+
+        // 클릭 이벤트 리스너 (아라레 달리기)
+        document.addEventListener('click', function(e) {
+            // 버튼, 팝업, 스티커 존 등을 클릭했을 땐 달리기 로직 실행 X
+            if (e.target.closest('.info-bubble') || e.target.closest('#reach-out-btn') || 
+                e.target.closest('.comic-tag') || e.target.closest('.movable-char') || 
+                e.target.closest('#left-sticker-zone')) return;
+
+            if (!isFinalStage || clickCount >= TARGET_CLICKS) return;
+            
+            clickCount++; 
+            const progress = clickCount / TARGET_CLICKS;
+            updateCharacterPosition(progress);
+            
+            // 스프라이트 애니메이션
+            if (clickCount < TARGET_CLICKS) {
+                if (clickCount % 2 === 1) { 
+                    charRun1.style.display = 'none'; charRun2.style.display = 'block'; 
+                } else { 
+                    charRun1.style.display = 'block'; charRun2.style.display = 'none'; 
+                }
+            } else {
+                // 도착 완료
+                charRun1.style.display = 'none'; charRun2.style.display = 'none'; 
+                charFinal.style.display = 'block';
+                document.body.classList.add('arale-arrived');
+            }
+            
+            // 먼지 이펙트 재생
+            dustEffect.classList.remove('dust-active'); 
+            void dustEffect.offsetWidth; 
+            dustEffect.classList.add('dust-active');
+        });
+
+        // 드래그 로직 (초기 단계)
+        araleDrag.addEventListener('mousedown', function(e) { 
+            if (e.button !== 0 || isFinalStage) return; e.preventDefault(); 
+            araleDrag.style.transition = 'none'; 
+            araleDrag.removeEventListener('transitionend', resetArale); 
+            araleDrag.removeEventListener('transitionend', exitArale); 
+            araleDrag.src = IMG_NORMAL; araleDrag.style.width = '500px'; 
+            araleDrag.classList.remove('arale-hidden'); 
+            if (currentStage === 0) bgImage.style.transition = 'none'; 
+            else if (currentStage === 1) logoImage.style.transition = 'none'; 
+            isDragging = true; araleDrag.classList.add('grabbing'); 
+            const rect = araleDrag.getBoundingClientRect(); offsetY = e.clientY - rect.top; 
+            araleDrag.style.top = rect.top + 'px'; 
+        });
+
+        document.addEventListener('mousemove', function(e) { 
+            if (!isDragging) return; e.preventDefault(); 
+            const y = e.clientY - offsetY; araleDrag.style.top = y + 'px'; 
+            if (currentStage === 0) { 
+                let newTop = (y - windowHeight) + GRIP_OFFSET; 
+                if (newTop > 0) newTop = 0; 
+                bgImage.style.top = newTop + 'px'; 
+            } else if (currentStage === 1) { 
+                let newTop = y - 200; 
+                let targetTop = windowHeight * 0.05; 
+                if (newTop > targetTop) newTop = targetTop; 
+                logoImage.style.top = newTop + 'px'; 
+            } 
+        });
+
+        document.addEventListener('mouseup', function(e) { 
+            if (isDragging) { 
+                isDragging = false; araleDrag.classList.remove('grabbing'); 
+                bgImage.removeAttribute('style'); logoImage.removeAttribute('style'); 
+                const isPulledEnough = parseInt(araleDrag.style.top) > DROP_THRESHOLD; 
+                if (isPulledEnough) { 
+                    araleDrag.src = IMG_CLIMBING; araleDrag.style.width = '750px'; 
+                    if (currentStage === 0) { 
+                        stageBody.classList.add('stage-1-active'); 
+                        araleDrag.style.transition = `top ${SPEED_RESET} ease-in-out`; 
+                        araleDrag.style.top = '0px'; 
+                        araleDrag.addEventListener('transitionend', resetArale); 
+                    } else if (currentStage === 1) { 
+                        stageBody.classList.add('stage-2-active'); 
+                        araleDrag.style.transition = `top ${SPEED_EXIT} ease-in-out`; 
+                        araleDrag.style.top = '-1000px'; 
+                        araleDrag.addEventListener('transitionend', exitArale); 
+                    } 
+                } else { 
+                    araleDrag.style.transition = 'top 0.5s ease-out'; araleDrag.style.top = '0px'; 
+                } 
+            } 
+        });
+    </script>
+</body>
+</html>
